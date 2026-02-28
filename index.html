@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll System - Adhi Group Sawindo</title>
+    <!-- Favicon Placeholder -->
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2652/2652218.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: #16a34a;
+            --primary-dark: #15803d;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            #salary-slip {
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- App Container -->
+    <div class="min-h-screen flex flex-col">
+        
+        <!-- Navbar -->
+        <nav class="bg-white/80 backdrop-blur-md border-b sticky top-0 z-50 no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-200">
+                        <i data-lucide="leaf"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg tracking-tight leading-none text-slate-900">ADHI GROUP</h1>
+                        <p class="text-[10px] font-bold text-green-600 tracking-[0.2em] uppercase">Sawindo Payroll</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+                    <button onclick="switchView('dashboard')" id="nav-dashboard" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-white shadow-sm text-green-700">
+                        Dashboard
+                    </button>
+                    <button onclick="switchView('employees')" id="nav-employees" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-900">
+                        Data Staf
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+                
+                <!-- Left: Control Panel -->
+                <div class="lg:col-span-4 no-print space-y-6">
+                    <div class="bg-white rounded-2xl border shadow-sm p-6 overflow-hidden relative">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="font-bold text-slate-800 tracking-tight">Pengaturan Slip</h2>
+                            <i data-lucide="settings-2" class="text-slate-300 w-5 h-5"></i>
+                        </div>
+                        
+                        <!-- NEW: Manual Period Input -->
+                        <div class="mb-6">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Periode Gaji (Manual)</label>
+                            <input type="text" id="manual-period" oninput="updatePeriod()" placeholder="Contoh: Februari 2026" 
+                                   class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all font-bold text-slate-700">
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Cari Karyawan</label>
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                                <input type="text" id="search-bar" oninput="renderSidebarList()" placeholder="Ketik nama staf..." 
+                                       class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none transition-all">
+                            </div>
+                        </div>
+
+                        <div id="sidebar-list" class="space-y-2 mt-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- JS Generated List -->
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-white shadow-xl shadow-green-100 relative overflow-hidden">
+                        <i data-lucide="zap" class="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12"></i>
+                        <h3 class="font-bold text-lg mb-2">Petunjuk Cetak</h3>
+                        <p class="text-xs text-green-100 leading-relaxed mb-4">Pastikan skala pencetakan di browser diatur ke 100% agar layout slip tetap presisi.</p>
+                        <button class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i> Pelajari Sistem
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Slip Preview -->
+                <div class="lg:col-span-8">
+                    <div class="flex items-center justify-between mb-6 no-print">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-green-100 text-green-700 rounded-lg">
+                                <i data-lucide="file-text" class="w-5 h-5"></i>
+                            </div>
+                            <h2 class="font-bold text-slate-900 text-xl tracking-tight">Pratinjau Slip</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Cetak
+                            </button>
+                            <button onclick="exportCurrentSlip()" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 shadow-lg shadow-green-100 transition-all">
+                                <i data-lucide="download" class="w-4 h-4"></i> Simpan Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SLIP DESIGN -->
+                    <div id="salary-slip" class="bg-white shadow-2xl border border-slate-200 rounded-2xl p-8 md:p-12 w-full mx-auto relative overflow-hidden">
+                        <!-- Watermark -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-[-35deg]">
+                            <i data-lucide="leaf" class="w-96 h-96"></i>
+                        </div>
+
+                        <!-- Header -->
+                        <div class="flex flex-col md:flex-row justify-between items-center md:items-start border-b-4 border-slate-900 pb-8 mb-8 gap-6 relative">
+                            <div class="text-center md:text-left">
+                                <h2 class="text-3xl font-black text-slate-900 leading-none tracking-tight">ADHI GROUP SAWINDO</h2>
+                                <p class="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-2">Air Latak,Seluma Bengkulu Indonesia</p>
+                                <p class="text-[10px] text-slate-400 italic">Email: Adhigroupsawindo@gmail.com| Telp: (021) 555-8899</p>
+                            </div>
+                            <div class="text-center md:text-right">
+                                <div class="bg-slate-900 text-white px-6 py-2 font-black text-sm rounded-lg mb-2 inline-block tracking-widest">SLIP GAJI KARYAWAN</div>
+                                <p class="text-sm font-bold text-slate-700 uppercase" id="slip-period">Februari 2026</p>
+                            </div>
+                        </div>
+
+                        <!-- Employee Info -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 text-sm relative">
+                            <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                                    <span class="text-slate-400 font-bold uppercase text-[10px]">Nama Lengkap</span>
+                                    <span class="font-extrabold text-slate-900" id="slip-name">-</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-400 font-bold uppercase text-[10px]">ID Karyawan</span>
+                                    <span class="font-mono font-bold text-slate-600" id="slip-id">-</span>
+                                </div>
+                            </div>
+                            <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                                    <span class="text-slate-400 font-bold uppercase text-[10px]">Jabatan / Divisi</span>
+                                    <span class="font-bold text-slate-900" id="slip-pos">-</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-400 font-bold uppercase text-[10px]">Status Kerja</span>
+                                    <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter">Karyawan Aktif</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Tables -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 border border-slate-300 rounded-xl overflow-hidden mb-10 relative">
+                            <!-- Earnings -->
+                            <div class="border-r border-slate-300">
+                                <div class="bg-slate-900 text-white p-3 text-[11px] font-black uppercase tracking-widest flex justify-between">
+                                    <span>Penerimaan</span>
+                                    <span>Rp</span>
+                                </div>
+                                <div class="p-4 space-y-4 text-sm font-medium">
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">Gaji Pokok</span>
+                                        <span id="slip-gapok" class="font-mono font-bold">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">Tunjangan & Insentif</span>
+                                        <span id="slip-tunjangan" class="font-mono font-bold">0</span>
+                                    </div>
+                                    <div class="pt-4 border-t border-slate-200 flex justify-between text-green-700 font-black">
+                                        <span>Sub-Total (A)</span>
+                                        <span id="slip-total-a" class="font-mono">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Deductions -->
+                            <div>
+                                <div class="bg-slate-100 text-slate-600 p-3 text-[11px] font-black uppercase tracking-widest flex justify-between">
+                                    <span>Potongan</span>
+                                    <span>Rp</span>
+                                </div>
+                                <div class="p-4 space-y-4 text-sm font-medium">
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">PPh 21 / Pajak</span>
+                                        <span id="slip-pajak" class="font-mono font-bold">0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">BPJS & Asuransi</span>
+                                        <span id="slip-asuransi" class="font-mono font-bold">0</span>
+                                    </div>
+                                    <div class="pt-4 border-t border-slate-200 flex justify-between text-red-600 font-black">
+                                        <span>Sub-Total (B)</span>
+                                        <span id="slip-total-b" class="font-mono">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Take Home Pay Section -->
+                        <div class="bg-green-600 p-8 rounded-2xl text-white shadow-xl shadow-green-100 flex flex-col md:flex-row items-center justify-between gap-6 mb-12 relative">
+                            <div class="text-center md:text-left">
+                                <p class="text-[10px] font-black text-green-200 uppercase tracking-[0.2em] mb-1">Gaji Bersih Diterima</p>
+                                <h3 class="text-4xl font-black font-mono tracking-tighter" id="slip-thp">Rp 0</h3>
+                            </div>
+                            <div class="text-center md:text-right max-w-[250px]">
+                                <p class="text-[9px] font-black text-green-200 uppercase mb-1 opacity-80">Terbilang:</p>
+                                <p class="text-xs italic font-bold leading-tight bg-white/10 p-2 rounded-lg" id="slip-terbilang"># Nol Rupiah #</p>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Section -->
+                        <div class="grid grid-cols-2 gap-12 text-center text-xs relative pt-10">
+                            <div class="flex flex-col items-center">
+                                <p class="text-slate-400 uppercase font-black tracking-widest mb-20 italic">Penerima Gaji,</p>
+                                <p class="font-black text-slate-900 border-b-2 border-slate-900 px-8 pb-1 uppercase" id="sign-name">Nama Karyawan</p>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <p class="text-slate-400 uppercase font-black tracking-widest mb-20 italic">Finance Manager,</p>
+                                <p class="font-black text-slate-900 border-b-2 border-slate-900 px-8 pb-1 uppercase">H Finance manager</p>
+                                <p class="text-[8px] font-black text-green-600 tracking-widest mt-2 uppercase">Official Adhi Group</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: EMPLOYEES -->
+            <div id="view-employees" class="hidden space-y-6 animate-in slide-in-from-bottom duration-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">Database Karyawan</h2>
+                        <p class="text-slate-500 text-sm">Kelola rincian pendapatan dan potongan seluruh staf.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="exportFullDatabase()" class="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all">
+                            <i data-lucide="table"></i> Ekspor Semua
+                        </button>
+                        <button onclick="openEmployeeModal()" class="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-100">
+                            <i data-lucide="plus-circle"></i> Tambah Karyawan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[1000px]">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                                    <th class="px-8 py-5">Karyawan</th>
+                                    <th class="px-6 py-5">Jabatan</th>
+                                    <th class="px-6 py-5 text-right">Gapok</th>
+                                    <th class="px-6 py-5 text-right">Tunjangan</th>
+                                    <th class="px-6 py-5 text-right">Potongan</th>
+                                    <th class="px-6 py-5 text-right">Total Bersih</th>
+                                    <th class="px-8 py-5 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employee-table-body" class="divide-y divide-slate-100">
+                                <!-- JS Generated Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: EMPLOYEE FORM -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+            <div class="px-8 py-6 border-b flex items-center justify-between bg-slate-50/50">
+                <h3 id="modal-title" class="font-black text-slate-900 text-xl tracking-tight">Tambah Karyawan</h3>
+                <button onclick="closeModal()" class="p-2 hover:bg-white rounded-full transition-all text-slate-400">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="employee-form" class="p-8 space-y-6">
+                <input type="hidden" id="edit-idx">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="col-span-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">ID Karyawan</label>
+                        <input type="text" id="inp-id" required placeholder="AGS-..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 font-bold text-sm transition-all">
+                    </div>
+                    <div class="col-span-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Jabatan</label>
+                        <input type="text" id="inp-pos" required placeholder="Ex: Mandor" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 font-bold text-sm transition-all">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Nama Lengkap</label>
+                        <input type="text" id="inp-name" required placeholder="Nama Lengkap" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 font-bold text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Gaji Pokok</label>
+                        <input type="number" id="inp-gapok" required value="0" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 font-bold text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Tunjangan</label>
+                        <input type="number" id="inp-tunjangan" required value="0" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 font-bold text-sm transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest text-red-500">Potongan Pajak</label>
+                        <input type="number" id="inp-pajak" required value="0" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-500 font-bold text-sm transition-all text-red-600">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest text-red-500">Potongan Asuransi</label>
+                        <input type="number" id="inp-asuransi" required value="0" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-500 font-bold text-sm transition-all text-red-600">
+                    </div>
+                </div>
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all text-sm uppercase tracking-widest">Batal</button>
+                    <button type="submit" class="flex-1 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-100 text-sm uppercase tracking-widest">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <script>
+        // DATA STATE
+        let employees = JSON.parse(localStorage.getItem('ags_data_v2')) || [
+            { id: 'AGS-001', name: 'Adhi Setiawan', pos: 'Manager Perkebunan', gapok: 12500000, tunjangan: 3500000, pajak: 500000, asuransi: 250000 },
+            { id: 'AGS-002', name: 'Budi Santoso', pos: 'Mandor Lapangan', gapok: 6500000, tunjangan: 1500000, pajak: 200000, asuransi: 100000 },
+            { id: 'AGS-003', name: 'Siti Aminah', pos: 'Admin PKS', gapok: 4800000, tunjangan: 1200000, pajak: 150000, asuransi: 90000 }
+        ];
+
+        let selectedId = employees[0]?.id || '';
+        let currentPeriod = localStorage.getItem('ags_period_v2') || 'FEBRUARI 2026';
+
+        // FORMATTERS
+        const fmt = (v) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
+        const fmtNum = (v) => v.toLocaleString('id-ID');
+
+        const terbilang = (n) => {
+            const words = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+            if (n < 12) return words[n];
+            if (n < 20) return terbilang(n - 10) + " Belas";
+            if (n < 100) return terbilang(Math.floor(n / 10)) + " Puluh " + terbilang(n % 10);
+            if (n < 200) return " Seratus " + terbilang(n - 100);
+            if (n < 1000) return terbilang(Math.floor(n / 100)) + " Ratus " + terbilang(n % 100);
+            if (n < 2000) return " Seribu " + terbilang(n - 1000);
+            if (n < 1000000) return terbilang(Math.floor(n / 1000)) + " Ribu " + terbilang(n % 1000);
+            if (n < 1000000000) return terbilang(Math.floor(n / 1000000)) + " Juta " + terbilang(n % 1000000);
+            return "";
+        };
+
+        // UI LOGIC
+        function switchView(view) {
+            const vDash = document.getElementById('view-dashboard');
+            const vEmp = document.getElementById('view-employees');
+            const nDash = document.getElementById('nav-dashboard');
+            const nEmp = document.getElementById('nav-employees');
+
+            if (view === 'dashboard') {
+                vDash.classList.remove('hidden');
+                vEmp.classList.add('hidden');
+                nDash.className = "px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-white shadow-sm text-green-700";
+                nEmp.className = "px-4 py-1.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-900";
+                renderDashboard();
+            } else {
+                vDash.classList.add('hidden');
+                vEmp.classList.remove('hidden');
+                nEmp.className = "px-4 py-1.5 rounded-lg text-sm font-bold transition-all bg-white shadow-sm text-green-700";
+                nDash.className = "px-4 py-1.5 rounded-lg text-sm font-bold transition-all text-slate-500 hover:text-slate-900";
+                renderEmployeeTable();
+            }
+        }
+
+        // New function to update period manually
+        function updatePeriod() {
+            const val = document.getElementById('manual-period').value;
+            currentPeriod = val;
+            localStorage.setItem('ags_period_v2', currentPeriod);
+            document.getElementById('slip-period').innerText = currentPeriod;
+        }
+
+        function renderSidebarList() {
+            const list = document.getElementById('sidebar-list');
+            const search = document.getElementById('search-bar').value.toLowerCase();
+            list.innerHTML = '';
+
+            employees.filter(e => e.name.toLowerCase().includes(search)).forEach(emp => {
+                const active = selectedId === emp.id;
+                const div = document.createElement('button');
+                div.onclick = () => { selectedId = emp.id; renderDashboard(); };
+                div.className = `w-full flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 ${active ? 'border-green-500 bg-green-50/50 shadow-sm ring-1 ring-green-500' : 'border-transparent hover:bg-slate-50'}`;
+                div.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${active ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500'}">
+                        ${emp.name.charAt(0)}
+                    </div>
+                    <div class="text-left flex-1 min-w-0">
+                        <p class="font-bold text-sm truncate ${active ? 'text-green-900' : 'text-slate-700'}">${emp.name}</p>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">${emp.pos}</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function renderDashboard() {
+            renderSidebarList();
+            const e = employees.find(x => x.id === selectedId) || employees[0];
+            if (!e) return;
+
+            // Update Manual Period Input field
+            document.getElementById('manual-period').value = currentPeriod;
+            document.getElementById('slip-period').innerText = currentPeriod;
+
+            document.getElementById('slip-name').innerText = e.name;
+            document.getElementById('slip-id').innerText = e.id;
+            document.getElementById('slip-pos').innerText = e.pos;
+            document.getElementById('slip-gapok').innerText = fmtNum(e.gapok);
+            document.getElementById('slip-tunjangan').innerText = fmtNum(e.tunjangan);
+            document.getElementById('slip-total-a').innerText = fmtNum(e.gapok + e.tunjangan);
+            document.getElementById('slip-pajak').innerText = `(${fmtNum(e.pajak)})`;
+            document.getElementById('slip-asuransi').innerText = `(${fmtNum(e.asuransi)})`;
+            document.getElementById('slip-total-b').innerText = fmtNum(e.pajak + e.asuransi);
+            
+            const thp = (e.gapok + e.tunjangan) - (e.pajak + e.asuransi);
+            document.getElementById('slip-thp').innerText = fmt(thp);
+            document.getElementById('slip-terbilang').innerText = `# ${terbilang(thp)} Rupiah #`;
+            document.getElementById('sign-name').innerText = e.name;
+        }
+
+        function renderEmployeeTable() {
+            const body = document.getElementById('employee-table-body');
+            body.innerHTML = '';
+
+            employees.forEach((e, idx) => {
+                const thp = (e.gapok + e.tunjangan) - (e.pajak + e.asuransi);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors group";
+                tr.innerHTML = `
+                    <td class="px-8 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-500">${e.name.charAt(0)}</div>
+                            <div>
+                                <p class="font-black text-slate-900 text-xs">${e.name}</p>
+                                <p class="text-[9px] font-black text-slate-400 tracking-widest uppercase">${e.id}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-slate-600 text-xs">${e.pos}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-xs">${fmtNum(e.gapok)}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-xs text-green-600">+${fmtNum(e.tunjangan)}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-xs text-red-500">-${fmtNum(e.pajak + e.asuransi)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="bg-green-600 text-white px-3 py-1 rounded-full text-[11px] font-black font-mono tracking-tighter">${fmt(thp)}</span>
+                    </td>
+                    <td class="px-8 py-4">
+                        <div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editEmp(${idx})" class="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="deleteEmp(${idx})" class="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // CRUD OPERATIONS
+        function openEmployeeModal(idx = null) {
+            const modal = document.getElementById('modal-backdrop');
+            const form = document.getElementById('employee-form');
+            const title = document.getElementById('modal-title');
+            
+            form.reset();
+            document.getElementById('edit-idx').value = idx !== null ? idx : '';
+
+            if (idx !== null) {
+                const e = employees[idx];
+                title.innerText = 'Edit Karyawan';
+                document.getElementById('inp-id').value = e.id;
+                document.getElementById('inp-name').value = e.name;
+                document.getElementById('inp-pos').value = e.pos;
+                document.getElementById('inp-gapok').value = e.gapok;
+                document.getElementById('inp-tunjangan').value = e.tunjangan;
+                document.getElementById('inp-pajak').value = e.pajak;
+                document.getElementById('inp-asuransi').value = e.asuransi;
+            } else {
+                title.innerText = 'Tambah Karyawan Baru';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+        }
+
+        document.getElementById('employee-form').onsubmit = (ev) => {
+            ev.preventDefault();
+            const idx = document.getElementById('edit-idx').value;
+            const payload = {
+                id: document.getElementById('inp-id').value,
+                name: document.getElementById('inp-name').value,
+                pos: document.getElementById('inp-pos').value,
+                gapok: parseInt(document.getElementById('inp-gapok').value),
+                tunjangan: parseInt(document.getElementById('inp-tunjangan').value),
+                pajak: parseInt(document.getElementById('inp-pajak').value),
+                asuransi: parseInt(document.getElementById('inp-asuransi').value),
+            };
+
+            if (idx !== '') {
+                employees[idx] = payload;
+            } else {
+                employees.push(payload);
+            }
+
+            localStorage.setItem('ags_data_v2', JSON.stringify(employees));
+            closeModal();
+            renderEmployeeTable();
+            renderDashboard();
+        };
+
+        function deleteEmp(idx) {
+            if (employees.length > 1 && confirm('Hapus data karyawan ini?')) {
+                employees.splice(idx, 1);
+                localStorage.setItem('ags_data_v2', JSON.stringify(employees));
+                selectedId = employees[0].id;
+                renderEmployeeTable();
+                renderDashboard();
+            }
+        }
+
+        function editEmp(idx) {
+            openEmployeeModal(idx);
+        }
+
+        // EXPORT LOGIC
+        function exportFullDatabase() {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(employees.map(e => ({
+                ID: e.id, Nama: e.name, Jabatan: e.pos, 
+                Gapok: e.gapok, Tunjangan: e.tunjangan, 
+                Pajak: e.pajak, Asuransi: e.asuransi,
+                THP: (e.gapok + e.tunjangan) - (e.pajak + e.asuransi),
+                Periode: currentPeriod
+            })));
+            XLSX.utils.book_append_sheet(wb, ws, "Database_Staff");
+            XLSX.writeFile(wb, "Payroll_Full_Database.xlsx");
+        }
+
+        function exportCurrentSlip() {
+            const e = employees.find(x => x.id === selectedId);
+            if(!e) return;
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([
+                ["ADHI GROUP SAWINDO - SLIP GAJI"],
+                ["Periode:", currentPeriod],
+                ["ID:", e.id], ["Nama:", e.name], ["Jabatan:", e.pos],
+                [],
+                ["PENERIMAAN", e.gapok + e.tunjangan],
+                ["- Gaji Pokok", e.gapok],
+                ["- Tunjangan", e.tunjangan],
+                [],
+                ["POTONGAN", e.pajak + e.asuransi],
+                ["- Pajak", e.pajak],
+                ["- Asuransi", e.asuransi],
+                [],
+                ["TAKE HOME PAY", (e.gapok + e.tunjangan) - (e.pajak + e.asuransi)]
+            ]);
+            XLSX.utils.book_append_sheet(wb, ws, "Slip_" + e.id);
+            XLSX.writeFile(wb, `Slip_Gaji_${e.name.replace(' ', '_')}.xlsx`);
+        }
+
+        // INIT
+        window.onload = () => {
+            renderDashboard();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
+
